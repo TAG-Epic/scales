@@ -1,0 +1,24 @@
+name: Scales
+
+settings:
+    - ArgRequiredElseHelp
+
+args: []
+
+subcommands:
+    - install:
+        about: "Installs dependencies from the scalesfile"
+    - add:
+        about: "Adds a dependency to the scalesfile"
+        args:
+          - packages:
+              about: "Packages to install"
+              multiple_values: true
+              required: true
+    - remove:
+        about: "Removes a dependency from the scalesfile"
+        args:
+          - packages:
+              about: "Packages to remove"
+              multiple_values: true
+              required: true
