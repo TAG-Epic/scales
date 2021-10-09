@@ -8,6 +8,7 @@ fn main() {
     let matches = App::from(config).get_matches();
     match matches.subcommand_name().unwrap() {
         "add" => commands::add::run(matches),
+        "install" => commands::install::run(),
         _ => panic!("Command not implemented")
     }
 }

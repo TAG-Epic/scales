@@ -13,14 +13,17 @@ pub fn run(matches: ArgMatches) {
     let git_regex = Regex::new("^git@.*").unwrap();
     
     for package in packages {
+        if config::is_dep_set(package, &config.dependencies) {
+            utils::error("Package has already been added.");
+        }
         if http_regex.is_match(package) {
-            panic!("Http dep not supported.");
+            utils::error("Http dep not supported.");
         } else if git_regex.is_match(package) {
             let dependency = config::GitDependency{uri: package.to_string(), branch: "master".to_string(), commit: None, tag: None};
             config.dependencies.push(config::Dependency::Git(dependency));
         } else {
-            if package.contains("|") {
-                let splitted = package.rsplit_once("|").unwrap();
+            if package.contains("==") {
+                let splitted = package.rsplit_once("==").unwrap();
                 let package = splitted.0;
                 let version = splitted.1;
                 let dependency = config::PypiDependency{ name: package.to_string(), version: version.to_string() };
@@ -32,6 +35,5 @@ pub fn run(matches: ArgMatches) {
             }
         }
     }
-    println!("Package list: {:#?}", config);
-
+    config::write_config(config);
 }
