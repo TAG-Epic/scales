@@ -1,37 +1,37 @@
 use crate::config;
 use crate::utils;
 use std::fs::create_dir;
-use std::thread;
-use ureq;
-use std::fs::File;
-use std::io::BufWriter;
-use std::io::Read;
+use futures::future::join_all;
+use reqwest;
+use tokio::io::AsyncWriteExt;
+use tar::Archive;
+use flate2::read::GzDecoder;
+use tokio::task;
+use std::fs;
 
-pub fn run() {
+pub async fn run() {
     let config = config::get_config();
     let state_modules_path = utils::modules_path();
     
-    let mut threads: Vec<thread::JoinHandle<()>> = Vec::new();
+    let mut tasks = Vec::new();
 
     for dependency in config.dependencies {
         match dependency {
             config::Dependency::Pypi(dep) => {
                 let dep_path = state_modules_path.join(format!("pypi-{}-{}", dep.name, dep.version));
                 if !dep_path.exists() {
-                    let thread_dep = dep.clone();
-                    let thread = thread::spawn(move || {install_pypi(&thread_dep);});
-                    threads.push(thread);
+                    let task_dep = dep.clone();
+                    let task = install_pypi(task_dep);
+                    tasks.push(task);
                 }
             },
             config::Dependency::Git(_) => utils::error("Git dependencies can't be installed yet.")
         };
     }
-    for thread in threads {
-        thread.join().expect("Crashed thread?");
-    }
+    join_all(tasks).await;
 }
 
-fn install_pypi(dependency: &config::PypiDependency) {
+async fn install_pypi(dependency: config::PypiDependency) {
     let state_modules = utils::modules_path();
     let module_path = state_modules.join(format!("pypi-{}-{}/", dependency.name, dependency.version));
 
@@ -40,29 +40,41 @@ fn install_pypi(dependency: &config::PypiDependency) {
     }
 
     let project_info = utils::get_pypi_info(&dependency.name);
-    let download_url = project_info
+    let release = project_info
         .get("releases").unwrap()
         .get(&dependency.version).unwrap()
-        .get(0).unwrap()
-        .get("url").unwrap().as_str().unwrap();
+        .get(0).unwrap();
+    let download_url = release.get("url").unwrap().as_str().unwrap();
+    let download_type = release.get("packagetype").unwrap().as_str().unwrap();
 
-    println!("Download url: {}", download_url);
+    if download_type != "source" && download_type != "sdist" {
+        utils::error(&format!("Release type {} not supported yet", download_type).to_string());
+    }
     
+    let tar_path = format!("/tmp/scales-pypi-{}-{}.tar.gz", dependency.name, dependency.version);
+
     {
-        let file_path = format!("/tmp/scales-pypi-{}-{}", dependency.name, dependency.version).to_string();
-        let file = match File::create(&file_path) {
-            Err(error) => panic!("Couldn't open config file: {}", error),
-            Ok(file) => file
-        };
-        let writer = BufWriter::new(file);
+        let mut file = tokio::fs::File::create(&tar_path).await.unwrap();
+        let r = reqwest::get(download_url).await.unwrap();
+        file.write_all(&r.bytes().await.unwrap()).await.expect("Could not write to file.");
+    }
+    
+    let zipped_path = format!("/tmp/scales-pypi-{}-{}.tar.gz", dependency.name, dependency.version);
+    let output_path = format!("/tmp/{}-{}.tar.gz", dependency.name, dependency.version);
 
-        let r = ureq::get(download_url)
-            .call().unwrap()
-            .into_reader().read_to_end(&mut writer);
+    let task_zipped_path = zipped_path.clone();
 
-    } 
+    task::spawn_blocking(move || {
+        let file = fs::File::open(&task_zipped_path).unwrap();
+        let tar = GzDecoder::new(file);
+        let mut archive = Archive::new(tar);
+        archive.unpack("/tmp").expect("Failed to unarchive dependency.");
+    }).await.unwrap(); 
+    
+    install_package(&output_path).await;
+}
 
-    // Put successfully installed files in the shared package dir
-    create_dir(module_path).unwrap();
+async fn install_package(output_path: &str) {
+    println!("Installed package");
 }
 
