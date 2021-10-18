@@ -1,6 +1,5 @@
 use crate::config;
 use crate::utils;
-use std::fs::create_dir;
 use futures::future::join_all;
 use reqwest;
 use tokio::io::AsyncWriteExt;

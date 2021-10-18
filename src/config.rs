@@ -26,6 +26,8 @@ pub enum Dependency {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
+    pub name: Option<String>,
+    pub version: Option<String>,
     pub dependencies: Vec<Dependency>,
 }
 
@@ -41,6 +43,8 @@ pub fn get_config() -> Config {
     let file_path = get_config_file(env::current_dir().unwrap());
     if file_path == None {
         return Config {
+            name: None,
+            version: None,
             dependencies: Vec::new(),
         };
     }
@@ -67,8 +71,7 @@ pub fn write_config(config: Config) {
         Ok(file) => file
     };
     let writer = BufWriter::new(file);
-    serde_json::to_writer(writer, &config).unwrap();
-
+    serde_json::to_writer_pretty(writer, &config).unwrap();
 }
 
 pub fn is_dep_set(name: &str, dependencies: &Vec<Dependency>) -> bool {

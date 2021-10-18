@@ -11,6 +11,7 @@ async fn main() {
     match matches.subcommand_name().unwrap() {
         "add" => commands::add::run(matches),
         "install" => commands::install::run().await,
+        "show" => commands::show::run().await,
         _ => panic!("Command not implemented")
     }
 }

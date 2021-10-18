@@ -22,3 +22,5 @@ subcommands:
               about: "Packages to remove"
               multiple_values: true
               required: true
+    - show:
+        about: "Shows information from your scalesfile"
