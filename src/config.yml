@@ -24,3 +24,15 @@ subcommands:
               required: true
     - show:
         about: "Shows information from your scalesfile"
+    - init:
+        about: "Creates a new scales project from the current dir"
+        args:
+          - name:
+              about: "Name of package"
+          - version:
+              about: "Version of the package you are creating"
+          - force:
+              about: "Create a project even if one exists in current/parent dirs"
+              takes_value: false
+              long: "force"
+              short: "F"

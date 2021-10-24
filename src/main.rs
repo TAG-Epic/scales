@@ -12,6 +12,7 @@ async fn main() {
         "add" => commands::add::run(matches),
         "install" => commands::install::run().await,
         "show" => commands::show::run().await,
+        "init" => commands::init::run(matches),
         _ => panic!("Command not implemented")
     }
 }
