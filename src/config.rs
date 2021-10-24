@@ -24,6 +24,14 @@ pub enum Dependency {
     Pypi(PypiDependency),
     Git(GitDependency),
 }
+impl Dependency {
+    pub fn get_unique_name(self) -> String {
+        match self {
+            Self::Pypi(dependency) => format!("pypi-{}-{}", dependency.name, dependency.version),
+            Self::Git(dependency) => format!("git-{}-{}-{:?}-{:?}", dependency.uri, dependency.branch, dependency.commit, dependency.tag),
+        }
+    }
+}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     pub name: Option<String>,

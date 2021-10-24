@@ -3,7 +3,7 @@ use crate::config;
 use crate::utils;
 use regex::Regex;
 
-pub fn run(matches: ArgMatches) {
+pub async fn run(matches: ArgMatches, http_client: reqwest::Client) {
     let matches = matches.subcommand_matches("add").unwrap();
     let packages = matches.values_of("packages").unwrap();
 
@@ -29,7 +29,7 @@ pub fn run(matches: ArgMatches) {
                 let dependency = config::PypiDependency{ name: package.to_string(), version: version.to_string() };
                 config.dependencies.push(config::Dependency::Pypi(dependency));
             } else {
-                let package_version = utils::get_latest_pypi_release(package);
+                let package_version = utils::get_latest_pypi_release(package, &http_client).await;
                 let dependency = config::PypiDependency{ name: package.to_string(), version: package_version };
                 config.dependencies.push(config::Dependency::Pypi(dependency));
             }

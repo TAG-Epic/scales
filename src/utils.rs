@@ -3,20 +3,19 @@ use std::process;
 use std::path::{Path, PathBuf};
 use file_lock::FileLock;
 use std::env;
+use clap::crate_version;
 
-pub fn get_pypi_info(package_name: &str) -> serde_json::Value {
+pub async fn get_pypi_info(package_name: &str, http_client: &reqwest::Client) -> serde_json::Value {
     let url = &format!("https://pypi.org/pypi/{}/json", package_name).to_string();
-    let body = ureq::get(url)
-        .set("User-Agent", "Scales (@tag-epic on matrix)")
-        .call()
-        .unwrap()
-        .into_string()
-        .unwrap();
+    let body = http_client.get(url)
+        .header("User-Agent", format!("Scales v{}. (https://github.com/tag-epic/scales)", crate_version!()))
+        .send().await.unwrap()
+        .text().await.unwrap();
     serde_json::from_str(&body).unwrap()
 
 }
-pub fn get_latest_pypi_release(package_name: &str) -> String {
-    let package_info = get_pypi_info(package_name);
+pub async fn get_latest_pypi_release(package_name: &str, http_client: &reqwest::Client) -> String {
+    let package_info = get_pypi_info(package_name, http_client).await;
     package_info
         .get("info").unwrap()
         .get("version").unwrap().as_str().unwrap().to_string()

@@ -8,7 +8,7 @@ use flate2::read::GzDecoder;
 use tokio::task;
 use std::fs;
 
-pub async fn run() {
+pub async fn run(http_client: reqwest::Client) {
     let config = config::get_config();
     let state_modules_path = utils::modules_path();
     
@@ -20,7 +20,7 @@ pub async fn run() {
                 let dep_path = state_modules_path.join(format!("pypi-{}-{}", dep.name, dep.version));
                 if !dep_path.exists() {
                     let task_dep = dep.clone();
-                    let task = install_pypi(task_dep);
+                    let task = install_pypi(task_dep, &http_client);
                     tasks.push(task);
                 }
             },
@@ -30,7 +30,7 @@ pub async fn run() {
     join_all(tasks).await;
 }
 
-async fn install_pypi(dependency: config::PypiDependency) {
+async fn install_pypi(dependency: config::PypiDependency, http_client: &reqwest::Client) {
     let state_modules = utils::modules_path();
     let module_path = state_modules.join(format!("pypi-{}-{}/", dependency.name, dependency.version));
 
@@ -38,7 +38,7 @@ async fn install_pypi(dependency: config::PypiDependency) {
         panic!("Pypi module already exists for package {}", dependency.name);
     }
 
-    let project_info = utils::get_pypi_info(&dependency.name);
+    let project_info = utils::get_pypi_info(&dependency.name, &http_client).await;
     let release = project_info
         .get("releases").unwrap()
         .get(&dependency.version).unwrap()
@@ -70,10 +70,12 @@ async fn install_pypi(dependency: config::PypiDependency) {
         archive.unpack("/tmp").expect("Failed to unarchive dependency.");
     }).await.unwrap(); 
     
-    install_package(&output_path).await;
+    install_package(config::Dependency::Pypi(dependency), &output_path).await;
 }
 
-async fn install_package(output_path: &str) {
+async fn install_package(dependency: config::Dependency, output_path: &str) {
     println!("Installed package");
+    let unique_name = dependency.get_unique_name();
+    println!("Unique name: {}", unique_name);
 }
 
